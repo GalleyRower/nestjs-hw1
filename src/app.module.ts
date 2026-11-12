@@ -4,6 +4,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { appConfig } from './config/app.config.js';
 import { databaseConfig } from './config/database.config.js';
+import { DatabaseModule } from './database/database.module.js';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { databaseConfig } from './config/database.config.js';
       isGlobal: true,
       load: [appConfig, databaseConfig],
     }),
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
