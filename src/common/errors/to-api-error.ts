@@ -76,7 +76,7 @@ export function toApiError(
     return fromHttp(exception);
   }
   if (exception instanceof QueryFailedError) {
-    const driverError = exception.driverError;
+    const driverError: unknown = exception.driverError;
     return driverError instanceof DatabaseError
       ? fromDatabase(driverError, uniqueMessages)
       : INTERNAL_ERROR;

@@ -26,11 +26,12 @@ export class JwtAuthGuard extends AuthGuard(JWT_STRATEGY_NAME) {
     return isPublic ? true : super.canActivate(context);
   }
 
-  handleRequest<TUser = any>(err: any, user: any): TUser {
-    if (err || !user) {
-      throw (
-        err || new UnauthorizedException(SECURITY_ERROR_MESSAGES.unauthorized)
-      );
+  handleRequest<TUser>(error: unknown, user: TUser | false): TUser {
+    if (error) {
+      throw error;
+    }
+    if (!user) {
+      throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.unauthorized);
     }
     return user;
   }

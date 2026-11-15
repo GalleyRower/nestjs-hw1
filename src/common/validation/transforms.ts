@@ -1,8 +1,8 @@
-import { Transform } from 'class-transformer';
+import { Transform, type TransformFnParams } from 'class-transformer';
 
 function mapString(map: (value: string) => unknown): PropertyDecorator {
-  return Transform(({ value }) =>
-    typeof value === 'string' ? map(value) : value,
+  return Transform(({ value }: TransformFnParams): unknown =>
+    typeof value === 'string' ? map(value) : (value as unknown),
   );
 }
 
