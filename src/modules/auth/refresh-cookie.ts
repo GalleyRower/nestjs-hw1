@@ -28,6 +28,6 @@ export class RefreshCookie {
   }
 
   clear(response: Response): void {
-    response.clearCookie(REFRESH_COOKIE_NAME);
+    response.clearCookie(REFRESH_COOKIE_NAME, this.options);
   }
 }
