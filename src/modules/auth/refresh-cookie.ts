@@ -26,4 +26,8 @@ export class RefreshCookie {
       expires: pair.refreshExpiresAt,
     });
   }
+
+  clear(response: Response): void {
+    response.clearCookie(REFRESH_COOKIE_NAME);
+  }
 }

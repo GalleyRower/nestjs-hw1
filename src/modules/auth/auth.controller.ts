@@ -11,6 +11,7 @@ import { Public } from '../../common/decorators/public.decorator.js';
 import type { TokenPair } from '../security/token.service.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
 import { AuthService } from './auth.service.js';
+import { RefreshToken } from './decorators/refresh-token.decorator.js';
 import { AccessTokenResponse } from './dto/access-token.response.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshCookie } from './refresh-cookie.js';
@@ -40,7 +41,24 @@ export class AuthController {
     return this.respond(response, await this.auth.login(dto));
   }
 
-  // TODO: refresh и logout
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(
+    @RefreshToken() refreshToken: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AccessTokenResponse> {
+    return this.respond(response, await this.auth.refresh(refreshToken));
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(
+    @RefreshToken() refreshToken: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.auth.logout(refreshToken);
+    this.refreshCookie.clear(response);
+  }
 
   private respond(response: Response, pair: TokenPair): AccessTokenResponse {
     this.refreshCookie.set(response, pair);

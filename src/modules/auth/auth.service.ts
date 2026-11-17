@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { HashService } from '../security/hash.service.js';
-import type { TokenPair } from '../security/token.service.js';
+import { SECURITY_ERROR_MESSAGES } from '../security/security.messages.js';
+import { type TokenPair, TokenService } from '../security/token.service.js';
 import { SessionsService } from '../sessions/sessions.service.js';
 import type { CreateUserDto } from '../users/dto/create-user.dto.js';
 import { UsersRepository } from '../users/users.repository.js';
@@ -13,6 +14,7 @@ export class AuthService {
   constructor(
     private readonly users: UsersRepository,
     private readonly sessions: SessionsService,
+    private readonly tokens: TokenService,
     private readonly hashes: HashService,
     private readonly dataSource: DataSource,
   ) {}
@@ -43,5 +45,27 @@ export class AuthService {
       throw new UnauthorizedException(AUTH_ERROR_MESSAGES.wrongCredentials);
     }
     return this.sessions.open(user.id);
+  }
+
+  async refresh(refreshToken: string | undefined): Promise<TokenPair> {
+    if (!refreshToken) {
+      throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.sessionExpired);
+    }
+    const { sub: userId } = await this.tokens.verifyRefresh(refreshToken);
+    if (!(await this.users.existsById(userId))) {
+      throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.sessionExpired);
+    }
+    return this.dataSource.transaction(async (manager) => {
+      if (!(await this.sessions.consume(userId, refreshToken, manager))) {
+        throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.sessionExpired);
+      }
+      return this.sessions.open(userId, manager);
+    });
+  }
+
+  async logout(refreshToken: string | undefined): Promise<void> {
+    if (refreshToken) {
+      await this.sessions.close(refreshToken);
+    }
   }
 }
