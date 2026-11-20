@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type EntityManager, Repository } from 'typeorm';
+import { type EntityManager, Like, Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity.js';
 
 export interface CreateUserData {
@@ -14,6 +14,21 @@ export interface CreateUserData {
 export interface UserCredentials {
   id: string;
   passwordHash: string;
+}
+
+export interface FindPageParams {
+  page: number;
+  limit: number;
+  login?: string;
+}
+
+export interface UsersPage {
+  items: UserEntity[];
+  total: number;
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 @Injectable()
@@ -40,6 +55,10 @@ export class UsersRepository {
     );
   }
 
+  findById(id: string): Promise<UserEntity | null> {
+    return this.repository.findOneBy({ id });
+  }
+
   existsById(id: string): Promise<boolean> {
     return this.repository.existsBy({ id });
   }
@@ -49,5 +68,17 @@ export class UsersRepository {
       where: { login },
       select: { id: true, passwordHash: true },
     });
+  }
+
+  async findPage(params: FindPageParams): Promise<UsersPage> {
+    const [items, total] = await this.repository.findAndCount({
+      where: params.login
+        ? { login: Like(`%${escapeLike(params.login)}%`) }
+        : {},
+      order: { createdAt: 'DESC', id: 'DESC' },
+      skip: (params.page - 1) * params.limit,
+      take: params.limit,
+    });
+    return { items, total };
   }
 }

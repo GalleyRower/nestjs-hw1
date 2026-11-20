@@ -11,3 +11,6 @@ export const TrimLowercase = (): PropertyDecorator =>
 
 export const TrimToNull = (): PropertyDecorator =>
   mapString((value) => value.trim() || null);
+
+export const ToInt = (): PropertyDecorator =>
+  mapString((value) => (/^\d+$/.test(value) ? Number(value) : value));

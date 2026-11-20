@@ -14,5 +14,10 @@ export const AGE_MAX = 120;
 
 export const DESCRIPTION_MAX_LENGTH = 1000;
 
+export const PAGE_DEFAULT = 1;
+export const PAGE_MAX = 10_000;
+export const LIMIT_DEFAULT = 20;
+export const LIMIT_MAX = 100;
+
 export const USERS_LOGIN_UNIQUE_INDEX = 'users_login_active_uq';
 export const USERS_EMAIL_UNIQUE_INDEX = 'users_email_active_uq';
