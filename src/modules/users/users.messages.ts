@@ -18,7 +18,7 @@ export const USER_VALIDATION_MESSAGES = {
   loginLength: `Логин от ${LOGIN_MIN_LENGTH} до ${LOGIN_MAX_LENGTH} символов`,
   loginPattern: 'В логине можно латинские буквы, цифры и _',
   loginSearchLength: `Поиск по логину не длиннее ${LOGIN_MAX_LENGTH} символов`,
-  email: 'Укажи коректный email',
+  email: 'Укажи корректный email',
   emailLength: `Email не длиннее ${EMAIL_MAX_LENGTH} символов`,
   passwordType: 'Пароль должен быть строкой',
   passwordMin: `Пароль не короче ${PASSWORD_MIN_LENGTH} символов`,
