@@ -35,6 +35,7 @@ export const USER_ERROR_MESSAGES = {
   notFound: 'Профиль не найден',
   loginTaken: 'Логин уже занят, выбери другой',
   emailTaken: 'Email уже занят, укажи другой',
+  wrongOldPassword: 'Старый пароль указан неверно',
 } as const;
 
 export const USER_UNIQUE_MESSAGES = {

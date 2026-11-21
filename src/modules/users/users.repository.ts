@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type EntityManager, Like, Repository } from 'typeorm';
+import { type EntityManager, IsNull, Like, Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity.js';
 
 export interface CreateUserData {
@@ -9,6 +9,13 @@ export interface CreateUserData {
   passwordHash: string;
   age: number;
   description: string | null;
+}
+
+export interface UpdateUserData {
+  login?: string;
+  email?: string;
+  age?: number;
+  description?: string | null;
 }
 
 export interface UserCredentials {
@@ -70,6 +77,13 @@ export class UsersRepository {
     });
   }
 
+  findCredentialsById(id: string): Promise<UserCredentials | null> {
+    return this.repository.findOne({
+      where: { id },
+      select: { id: true, passwordHash: true },
+    });
+  }
+
   async findPage(params: FindPageParams): Promise<UsersPage> {
     const [items, total] = await this.repository.findAndCount({
       where: params.login
@@ -80,5 +94,38 @@ export class UsersRepository {
       take: params.limit,
     });
     return { items, total };
+  }
+
+  async update(id: string, data: UpdateUserData): Promise<boolean> {
+    const result = await this.repository.update(
+      { id, deletedAt: IsNull() },
+      {
+        login: data.login,
+        email: data.email,
+        age: data.age,
+        description: data.description,
+      },
+    );
+    return result.affected === 1;
+  }
+
+  async updatePasswordHash(
+    id: string,
+    passwordHash: string,
+    manager?: EntityManager,
+  ): Promise<boolean> {
+    const result = await this.repo(manager).update(
+      { id, deletedAt: IsNull() },
+      { passwordHash },
+    );
+    return result.affected === 1;
+  }
+
+  async softDelete(id: string, manager?: EntityManager): Promise<boolean> {
+    const result = await this.repo(manager).softDelete({
+      id,
+      deletedAt: IsNull(),
+    });
+    return result.affected === 1;
   }
 }
