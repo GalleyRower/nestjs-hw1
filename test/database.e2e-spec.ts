@@ -11,7 +11,10 @@ describe('database', () => {
   let dataSource: DataSource;
 
   beforeAll(async () => {
-    app = await createTestApp({ DB_STATEMENT_TIMEOUT_MS: '500' });
+    app = await createTestApp({
+      DB_POOL_SIZE: '2',
+      DB_STATEMENT_TIMEOUT_MS: '500',
+    });
     api = new ApiClient(app);
     dataSource = app.get(DataSource);
   });
@@ -26,26 +29,44 @@ describe('database', () => {
     expect(upQueries.map(({ query }) => query)).toEqual([]);
   });
 
-  it('по таймауту отвечает 503 и откатывает транзакцию', async () => {
-    const body = registerBody();
+  it('по таймауту отвечает 503, откатывает транзакцию и отдает соединение', async () => {
+    const bodies = [registerBody(), registerBody()];
+    const responses = [];
+    // в пуле из двух одно занято, второй запрос пройдет, только если первый вернул свое
     const locker = dataSource.createQueryRunner();
-    await locker.startTransaction();
-    await locker.query('LOCK TABLE refresh_sessions IN ACCESS EXCLUSIVE MODE');
+    try {
+      await locker.startTransaction();
+      await locker.query(
+        'LOCK TABLE refresh_sessions IN ACCESS EXCLUSIVE MODE',
+      );
+      for (const body of bodies) {
+        responses.push(
+          await api.request<ErrorBody>('post', '/auth/register', { body }),
+        );
+      }
+    } finally {
+      if (locker.isTransactionActive) {
+        await locker.rollbackTransaction();
+      }
+      await locker.release();
+    }
 
-    const response = await api.request<ErrorBody>('post', '/auth/register', {
-      body,
-    });
-    await locker.rollbackTransaction();
-    await locker.release();
-
-    expect(response.status).toBe(503);
-    expect(response.body.message).toBe(
-      'Сервис не успел обработать запрос, попробуй позже',
-    );
+    for (const response of responses) {
+      expect(response.status).toBe(503);
+      expect(response.body.message).toBe(
+        'Сервис не успел обработать запрос, попробуй позже',
+      );
+    }
+    const users = dataSource.getRepository(UserEntity);
+    for (const { login } of bodies) {
+      expect(await users.existsBy({ login })).toBe(false);
+    }
     expect(
-      await dataSource
-        .getRepository(UserEntity)
-        .existsBy({ login: body.login }),
-    ).toBe(false);
+      (
+        await api.request('post', '/auth/register', {
+          body: registerBody(),
+        })
+      ).status,
+    ).toBe(201);
   });
 });

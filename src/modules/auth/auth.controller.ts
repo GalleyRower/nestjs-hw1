@@ -25,6 +25,8 @@ import { AccessTokenResponse } from './dto/access-token.response.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshCookie } from './refresh-cookie.js';
 
+const REFRESH_IN_COOKIE = 'refresh_token приходит в HttpOnly cookie';
+
 @ApiTags('auth')
 @Public()
 @Controller('auth')
@@ -37,7 +39,7 @@ export class AuthController {
   @Post('register')
   @ApiCreatedResponse({
     type: AccessTokenResponse,
-    description: 'refresh_token приходит в HttpOnly cookie',
+    description: REFRESH_IN_COOKIE,
   })
   @ApiErrors(400, 409)
   async register(
@@ -51,7 +53,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({
     type: AccessTokenResponse,
-    description: 'refresh_token приходит в HttpOnly cookie',
+    description: REFRESH_IN_COOKIE,
   })
   @ApiErrors(400, 401)
   async login(

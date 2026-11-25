@@ -84,6 +84,18 @@ export class UsersRepository {
     });
   }
 
+  // FOR SHARE до конца транзакции, смена пароля и удаление ее дождутся
+  lockCredentials(
+    id: string,
+    manager: EntityManager,
+  ): Promise<UserCredentials | null> {
+    return this.repo(manager).findOne({
+      where: { id },
+      select: { id: true, passwordHash: true },
+      lock: { mode: 'pessimistic_read' },
+    });
+  }
+
   async findPage(params: FindPageParams): Promise<UsersPage> {
     const [items, total] = await this.repository.findAndCount({
       where: params.login

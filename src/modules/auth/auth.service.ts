@@ -44,7 +44,14 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException(AUTH_ERROR_MESSAGES.wrongCredentials);
     }
-    return this.sessions.open(user.id);
+    return this.dataSource.transaction(async (manager) => {
+      // пока шла проверка, пароль могли сменить или профиль удалить
+      const locked = await this.users.lockCredentials(user.id, manager);
+      if (locked?.passwordHash !== user.passwordHash) {
+        throw new UnauthorizedException(AUTH_ERROR_MESSAGES.wrongCredentials);
+      }
+      return this.sessions.open(user.id, manager);
+    });
   }
 
   async refresh(refreshToken: string | undefined): Promise<TokenPair> {
@@ -52,11 +59,12 @@ export class AuthService {
       throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.sessionExpired);
     }
     const { sub: userId } = await this.tokens.verifyRefresh(refreshToken);
-    if (!(await this.users.existsById(userId))) {
-      throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.sessionExpired);
-    }
     return this.dataSource.transaction(async (manager) => {
-      if (!(await this.sessions.consume(userId, refreshToken, manager))) {
+      const user = await this.users.lockCredentials(userId, manager);
+      const isConsumed =
+        user !== null &&
+        (await this.sessions.consume(userId, refreshToken, manager));
+      if (!isConsumed) {
         throw new UnauthorizedException(SECURITY_ERROR_MESSAGES.sessionExpired);
       }
       return this.sessions.open(userId, manager);

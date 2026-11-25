@@ -4,9 +4,11 @@ import {
   DESCRIPTION_MAX_LENGTH,
   EMAIL_MAX_LENGTH,
   LIMIT_MAX,
+  LIMIT_MIN,
   LOGIN_MAX_LENGTH,
   LOGIN_MIN_LENGTH,
   PAGE_MAX,
+  PAGE_MIN,
   PASSWORD_MAX_BYTES,
   PASSWORD_MIN_LENGTH,
   USERS_EMAIL_UNIQUE_INDEX,
@@ -27,8 +29,8 @@ export const USER_VALIDATION_MESSAGES = {
   ageRange: `Возраст от ${AGE_MIN} до ${AGE_MAX}`,
   descriptionType: 'Описание должно быть строкой',
   descriptionLength: `Описание не длиннее ${DESCRIPTION_MAX_LENGTH} символов`,
-  page: `page - целое число от 1 до ${PAGE_MAX}`,
-  limit: `limit - целое число от 1 до ${LIMIT_MAX}`,
+  page: `page - целое число от ${PAGE_MIN} до ${PAGE_MAX}`,
+  limit: `limit - целое число от ${LIMIT_MIN} до ${LIMIT_MAX}`,
 } as const;
 
 export const USER_ERROR_MESSAGES = {

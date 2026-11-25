@@ -1,7 +1,9 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
+import { HashService } from '../src/modules/security/hash.service.js';
 import { UserEntity } from '../src/modules/users/entities/user.entity.js';
 import {
   ApiClient,
@@ -12,6 +14,25 @@ import {
   type UsersPageBody,
 } from './utils/api-client.js';
 import { ACCESS_SECRET, createTestApp } from './utils/create-test-app.js';
+
+async function waitForShareLocks(
+  dataSource: DataSource,
+  blockerPid: number,
+  count: number,
+): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const [{ waiting }] = await dataSource.query<[{ waiting: number }]>(
+      `SELECT count(*)::int AS waiting FROM pg_stat_activity
+       WHERE $1 = ANY(pg_blocking_pids(pid)) AND query LIKE '%FOR SHARE%'`,
+      [blockerPid],
+    );
+    if (waiting === count) {
+      return;
+    }
+    await sleep(20);
+  }
+  throw new Error(`${count} запроса так и не встали на блокировку`);
+}
 
 describe('profile', () => {
   let app: INestApplication<App>;
@@ -173,6 +194,45 @@ describe('profile', () => {
       expect(response.body.message).toBe('Старый пароль указан неверно');
       expect((await api.login(login)).status).toBe(200);
       expect((await api.refresh(cookie)).status).toBe(200);
+    });
+
+    it('вход и refresh во время смены ждут ее и не открывают сессию', async () => {
+      const { login, token, cookie } = await api.signUp();
+      const { id } = (await api.profile(token)).body;
+      const dataSource = app.get(DataSource);
+      const passwordHash = await app
+        .get(HashService)
+        .hashPassword('password-2');
+      const locker = dataSource.createQueryRunner();
+
+      try {
+        await locker.startTransaction();
+        const [{ pid }] = await dataSource.query<[{ pid: number }]>(
+          'SELECT pg_backend_pid() AS pid',
+          [],
+          locker,
+        );
+        await locker.query(
+          'UPDATE users SET password_hash = $1 WHERE id = $2',
+          [passwordHash, id],
+        );
+        const pending = Promise.all([api.refresh(cookie), api.login(login)]);
+        await waitForShareLocks(dataSource, pid, 2);
+        await locker.query('DELETE FROM refresh_sessions WHERE user_id = $1', [
+          id,
+        ]);
+        await locker.commitTransaction();
+
+        const [refreshed, loggedIn] = await pending;
+        expect(refreshed.status).toBe(401);
+        expect(loggedIn.status).toBe(401);
+      } finally {
+        if (locker.isTransactionActive) {
+          await locker.rollbackTransaction();
+        }
+        await locker.release();
+      }
+      expect((await api.login(login, 'password-2')).status).toBe(200);
     });
   });
 

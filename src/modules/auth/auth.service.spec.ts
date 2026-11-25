@@ -20,7 +20,7 @@ describe('AuthService', () => {
   const users = {
     create: vi.fn(),
     findCredentialsByLogin: vi.fn(),
-    existsById: vi.fn(),
+    lockCredentials: vi.fn(),
   };
   const sessions = { open: vi.fn(), consume: vi.fn(), close: vi.fn() };
   const tokens = { verifyRefresh: vi.fn() };
@@ -77,9 +77,25 @@ describe('AuthService', () => {
   it('login возвращает пару при верном пароле', async () => {
     users.findCredentialsByLogin.mockResolvedValue(CREDENTIALS);
     hashes.verifyPassword.mockResolvedValue(true);
+    users.lockCredentials.mockResolvedValue(CREDENTIALS);
 
     expect(await service.login({ login: 'ivan', password: 'p' })).toBe(PAIR);
-    expect(sessions.open).toHaveBeenCalledWith(USER_ID);
+    expect(users.lockCredentials).toHaveBeenCalledWith(USER_ID, MANAGER);
+    expect(sessions.open).toHaveBeenCalledWith(USER_ID, MANAGER);
+  });
+
+  it.each([
+    ['сменили пароль', { id: USER_ID, passwordHash: 'new-hash' }],
+    ['удалили профиль', null],
+  ])('login 401, если во время проверки %s', async (_name, locked) => {
+    users.findCredentialsByLogin.mockResolvedValue(CREDENTIALS);
+    hashes.verifyPassword.mockResolvedValue(true);
+    users.lockCredentials.mockResolvedValue(locked);
+
+    await expect(
+      service.login({ login: 'ivan', password: 'p' }),
+    ).rejects.toThrow('Неверный логин или пароль');
+    expect(sessions.open).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -97,20 +113,21 @@ describe('AuthService', () => {
 
   it('refresh меняет старую сессию на новую в одной транзакции', async () => {
     tokens.verifyRefresh.mockResolvedValue({ sub: USER_ID });
-    users.existsById.mockResolvedValue(true);
+    users.lockCredentials.mockResolvedValue(CREDENTIALS);
     sessions.consume.mockResolvedValue(true);
 
     expect(await service.refresh('old')).toBe(PAIR);
+    expect(users.lockCredentials).toHaveBeenCalledWith(USER_ID, MANAGER);
     expect(sessions.consume).toHaveBeenCalledWith(USER_ID, 'old', MANAGER);
     expect(sessions.open).toHaveBeenCalledWith(USER_ID, MANAGER);
   });
 
   it.each([
-    ['пользователь удален', false, true],
-    ['refresh уже использован', true, false],
-  ])('refresh 401: %s', async (_name, isActive, isConsumed) => {
+    ['пользователь удален', null, true],
+    ['refresh уже использован', CREDENTIALS, false],
+  ])('refresh 401: %s', async (_name, locked, isConsumed) => {
     tokens.verifyRefresh.mockResolvedValue({ sub: USER_ID });
-    users.existsById.mockResolvedValue(isActive);
+    users.lockCredentials.mockResolvedValue(locked);
     sessions.consume.mockResolvedValue(isConsumed);
 
     await expect(service.refresh('old')).rejects.toThrow(

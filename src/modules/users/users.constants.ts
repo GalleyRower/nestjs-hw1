@@ -14,8 +14,10 @@ export const AGE_MAX = 120;
 
 export const DESCRIPTION_MAX_LENGTH = 1000;
 
+export const PAGE_MIN = 1;
 export const PAGE_DEFAULT = 1;
 export const PAGE_MAX = 10_000;
+export const LIMIT_MIN = 1;
 export const LIMIT_DEFAULT = 20;
 export const LIMIT_MAX = 100;
 
