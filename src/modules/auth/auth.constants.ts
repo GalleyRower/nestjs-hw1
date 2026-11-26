@@ -1,0 +1,3 @@
+export const REFRESH_COOKIE_NAME = 'refresh_token';
+export const REFRESH_COOKIE_PATH = '/auth';
+export const JWT_STRATEGY_NAME = 'jwt';
